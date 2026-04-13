@@ -3,6 +3,7 @@ from openai import OpenAI
 from gtts import gTTS
 import os
 import base64
+import uuid
 from streamlit_mic_recorder import mic_recorder
 
 # --- 1. API AYARI ---
@@ -26,9 +27,6 @@ if "last_fix" not in st.session_state:
     st.session_state.last_fix = ""
 if "last_processed_audio_id" not in st.session_state:
     st.session_state.last_processed_audio_id = None
-# KRİTİK: Sesin tekrar etmesini engelleyen takipçi
-if "last_spoken_text" not in st.session_state:
-    st.session_state.last_spoken_text = ""
 
 # --- 3. TASARIM ---
 st.set_page_config(page_title="MAND Bot AI", page_icon="🤖", layout="wide")
@@ -45,25 +43,24 @@ st.markdown("""
 # --- 4. YARDIMCI FONKSİYONLAR ---
 
 def speak(text):
-    """Sadece metin yeniyse ses çalmasını sağlar"""
-    if text and text != st.session_state.last_spoken_text:
+    """Metni sese çevirir ve tarayıcıda autoplay ile oynatır"""
+    if text:
         try:
             tts = gTTS(text=text, lang='en')
-            tts.save("temp.mp3")
-            with open("temp.mp3", "rb") as f:
+            filename = f"temp_{uuid.uuid4().hex}.mp3"
+            tts.save(filename)
+            
+            # Sesi oku ve base64'e çevir
+            with open(filename, "rb") as f:
                 data = f.read()
-                b64 = base64.b64encode(data).decode()
-                # Autoplay ve tarayıcı dostu HTML5 Audio
-                audio_html = f"""
-                    <audio autoplay="true">
-                        <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
-                    </audio>
-                """
-                st.markdown(audio_html, unsafe_allow_html=True)
-            st.session_state.last_spoken_text = text # Sesin çalındığını kaydet
-            os.remove("temp.mp3")
-        except:
-            pass
+            
+            # Streamlit'in kendi audio oynatıcısını autoplay ile kullanıyoruz
+            # Bu yöntem modern tarayıcılarda en stabil olanıdır
+            st.audio(data, format="audio/mp3", autoplay=True)
+            
+            os.remove(filename)
+        except Exception as e:
+            st.error(f"Ses hatası: {e}")
 
 def ask_mand(prompt):
     if "my name is" in prompt.lower():
@@ -103,7 +100,6 @@ with st.sidebar:
                                          index=["A1", "A2", "B1", "B2"].index(st.session_state.level))
     if st.button("🗑️ Reset Chat"):
         st.session_state.messages = []
-        st.session_state.last_spoken_text = ""
         st.rerun()
 
 # --- 6. ANA EKRAN ---
@@ -151,17 +147,16 @@ if final_prompt:
         st.session_state.last_fix = fix
         if fix and "None" not in fix:
             st.session_state.stats["mistakes"] += 1
-            st.session_state.stats["mistake_list"].append(fix)
         
-        # CEVABI BURADA ÇALDIRIYORUZ
+        # Sesi burada tetikliyoruz
         speak(ans)
+    
+    # Sayfayı yenileme (yeni mesajı göstermek için)
     st.rerun()
 
-# DÜZELTME BUTONU ANALİZİ
+# DÜZELTME BUTONU
 if st.session_state.last_fix and "None" not in st.session_state.last_fix:
     if st.button("⚠️ SHOW ANALYSIS"):
         st.warning(f"Fix: {st.session_state.last_fix}")
-        # Analizi de çal ama "last_spoken_text" kontrolünü geçici olarak devre dışı bırakalım
-        st.session_state.last_spoken_text = "" 
         speak(st.session_state.last_fix)
         st.session_state.last_fix = ""
