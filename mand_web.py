@@ -12,7 +12,7 @@ client = OpenAI(
     api_key="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" 
 )
 
-# --- 2. HAFIZA (Tkinter'daki veri yapısının aynısı) ---
+# --- 2. HAFIZA (SESSION STATE) ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "user_name" not in st.session_state:
@@ -27,9 +27,12 @@ if "last_fix" not in st.session_state:
     st.session_state.last_fix = ""
 if "last_audio_id" not in st.session_state:
     st.session_state.last_audio_id = None
+# SES İÇİN YENİ HAFIZA ALANI
+if "audio_to_play" not in st.session_state:
+    st.session_state.audio_to_play = None
 
-# --- 3. TASARIM (Robotun ve Panel'in Tkinter gibi görünmesi için) ---
-st.set_page_config(page_title="MAND Bot v8.3 Web", page_icon="🤖", layout="wide")
+# --- 3. TASARIM (CSS) ---
+st.set_page_config(page_title="MAND Bot v10.5", page_icon="🤖", layout="wide")
 
 st.markdown(f"""
     <style>
@@ -55,8 +58,8 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. SES SİSTEMİ (Konuşmama sorununu çözen kısım) ---
-def speak(text):
+# --- 4. SES SİSTEMİ (EN GÜNCEL HALİ) ---
+def get_audio_base64(text):
     if text:
         try:
             tts = gTTS(text=text, lang='en')
@@ -64,10 +67,10 @@ def speak(text):
             tts.save(filename)
             with open(filename, "rb") as f:
                 data = f.read()
-            # Autoplay True ve kontrol paneli açık
-            st.audio(data, format="audio/mp3", autoplay=True)
             os.remove(filename)
-        except: pass
+            return data
+        except: return None
+    return None
 
 # --- 5. AI MANTIĞI ---
 def ask_mand(prompt):
@@ -77,7 +80,7 @@ def ask_mand(prompt):
     st.session_state.stats["total_words"] += len(prompt.split())
     
     sys_msg = (f"You are MAND Bot. Level: {st.session_state.level}. User: {st.session_state.user_name}. "
-               "Answer naturally in English. End with a follow-up question. "
+               "Answer naturally in English. End with a short follow-up question. "
                "Format: [Mood: mood] | [Answer] | [Fix: correction or None]")
 
     try:
@@ -101,36 +104,28 @@ def ask_mand(prompt):
 # --- 6. SIDEBAR (DASHBOARD) ---
 with st.sidebar:
     st.title("🤖 MAND DASHBOARD")
-    st.markdown(f"""
-    <div class="stats-card">
-        <p style='margin:0;'>📝 <b>Total Words:</b> {st.session_state.stats['total_words']}</p>
-        <p style='margin:0; color:#fbbf24;'>⚠️ <b>Mistakes:</b> {st.session_state.stats['mistakes']}</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"""<div class="stats-card">📝 <b>Total Words:</b> {st.session_state.stats['total_words']}<br>
+    <span style='color:#fbbf24;'>⚠️ <b>Mistakes:</b> {st.session_state.stats['mistakes']}</span></div>""", unsafe_allow_html=True)
     
     st.divider()
-    st.subheader("LEVEL SELECTION")
-    new_lvl = st.radio("English Level", ["A1", "A2", "B1", "B2"], index=["A1", "A2", "B1", "B2"].index(st.session_state.level), horizontal=True)
-    st.session_state.level = new_lvl
+    st.session_state.level = st.radio("LEVEL", ["A1", "A2", "B1", "B2"], index=["A1", "A2", "B1", "B2"].index(st.session_state.level), horizontal=True)
     
-    st.divider()
     if st.button("🗑️ Reset Chat", use_container_width=True):
         st.session_state.messages = []
         st.session_state.stats = {"total_words": 0, "mistakes": 0, "mistake_list": []}
+        st.session_state.audio_to_play = None
         st.rerun()
 
-# --- 7. ANA PANEL (Robot Görseli) ---
-st.markdown(f"""
-    <div class="robot-box">
-        <div class="eye"></div>
-        <div class="eye"></div>
-        <p style='margin-top:20px; font-family:Courier; font-weight:bold; color:#94a3b8;'>
-            SYSTEM: {st.session_state.level} | ONLINE
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+# --- 7. ANA PANEL ---
+st.markdown(f"""<div class="robot-box"><div class="eye"></div><div class="eye"></div>
+<p style='margin-top:20px; font-family:Courier; font-weight:bold; color:#94a3b8;'>SYSTEM: {st.session_state.level} | ONLINE</p></div>""", unsafe_allow_html=True)
 
-# Mesajları Yazdır
+# SES OYNATICI (Sessizce pusuda bekler)
+if st.session_state.audio_to_play:
+    st.audio(st.session_state.audio_to_play, format="audio/mp3", autoplay=True)
+    st.session_state.audio_to_play = None # Çaldıktan sonra temizle
+
+# Sohbet Geçmişi
 for m in st.session_state.messages:
     with st.chat_message(m["role"]): st.markdown(m["content"])
 
@@ -146,7 +141,6 @@ with col_txt:
 
 final_input = None
 
-# Ses İşleme (Döngü korumalı)
 if audio_data:
     if st.session_state.last_audio_id != audio_data['id']:
         st.session_state.last_audio_id = audio_data['id']
@@ -160,7 +154,6 @@ if audio_data:
 if user_text:
     final_input = user_text
 
-# Yanıt Üretme
 if final_input:
     st.session_state.messages.append({"role": "user", "content": final_input})
     with st.chat_message("user"): st.markdown(final_input)
@@ -172,14 +165,15 @@ if final_input:
         st.session_state.last_fix = fix
         if fix and "None" not in fix:
             st.session_state.stats["mistakes"] += 1
-            st.session_state.stats["mistake_list"].append(fix)
-        speak(ans)
+        
+        # SESİ HAZIRLA VE SAYFAYI YENİLE (Oynatılması için)
+        st.session_state.audio_to_play = get_audio_base64(ans)
     st.rerun()
 
-# --- 9. DÜZELTME BUTONU (Analiz) ---
+# --- 9. DÜZELTME BUTONU ---
 if st.session_state.last_fix and "None" not in st.session_state.last_fix:
-    st.info("💡 Analysis Available")
     if st.button("⚠️ SHOW ANALYSIS", use_container_width=True):
         st.warning(f"Correction: {st.session_state.last_fix}")
-        speak(st.session_state.last_fix)
+        st.session_state.audio_to_play = get_audio_base64(st.session_state.last_fix)
         st.session_state.last_fix = ""
+        st.rerun()
