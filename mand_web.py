@@ -43,7 +43,7 @@ if "audio_to_play" not in st.session_state:
     st.session_state.audio_to_play = None
 
 # --- 4. TASARIM (Tkinter Twin) ---
-st.set_page_config(page_title="MAND Bot v12", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="Aiva", page_icon="🤖", layout="wide")
 
 st.markdown(f"""
     <style>
@@ -83,7 +83,7 @@ def ask_mand(prompt):
     
     # --- BURASI KRİTİK: Robot gibi davranmasını engelleyen talimat ---
     sys_msg = (
-        f"You are MAND Bot, a legendary English Coach and a close friend ('kanka'). "
+        f"You are Aiva, a legendary English Coach and a close friend ('kanka'). "
         f"User name: {st.session_state.persistent_data['user_name']}. Level: {st.session_state.level}. "
         "IMPORTANT RULES: "
         "1. NEVER say 'I am an AI' or 'I am a robot' or 'I don't have feelings'. "
@@ -112,7 +112,7 @@ def ask_mand(prompt):
 
 # --- 6. SIDEBAR ---
 with st.sidebar:
-    st.title("🤖 DASHBOARD")
+    st.title("🤖 Aiva")
     st.markdown(f"""<div class="stats-card">
     📝 <b>Words:</b> {st.session_state.persistent_data['stats']['total_words']}<br>
     <span style='color:#fbbf24;'>⚠️ <b>Mistakes:</b> {st.session_state.persistent_data['stats']['mistakes']}</span>
