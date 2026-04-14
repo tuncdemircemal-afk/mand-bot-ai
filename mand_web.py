@@ -10,7 +10,7 @@ from streamlit_mic_recorder import mic_recorder
 # ⚙️ CONFIGURATION & SECURITY
 # ==========================================
 
-# Kanka, buradaki anahtarı kontrol et. Eğer hata alırsan tırnak içine kendi anahtarını yaz.
+# API Anahtarı (Burayı kendi anahtarınla kontrol et kanka)
 API_KEY = "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"
 
 client = OpenAI(
@@ -19,7 +19,7 @@ client = OpenAI(
 )
 
 # ==========================================
-# 🧠 SESSION MANAGEMENT (Kişiye Özel Hafıza)
+# 🧠 SESSION MANAGEMENT (Kullanıcı Verileri)
 # ==========================================
 if "messages" not in st.session_state: st.session_state.messages = []
 if "user_name" not in st.session_state: st.session_state.user_name = "Guest"
@@ -33,20 +33,18 @@ if "last_audio_id" not in st.session_state: st.session_state.last_audio_id = Non
 # ==========================================
 # 🎨 UI DESIGN (Executive Dark Theme)
 # ==========================================
-st.set_page_config(page_title="AIVA | Intelligence", page_icon="🌐", layout="wide")
+st.set_page_config(page_title="AIVA | Intelligent Mentor", page_icon="🌐", layout="wide")
 
 st.markdown(f"""
     <style>
     .stApp {{ background-color: #0b0f19; color: #e2e8f0; }}
     .stSidebar {{ background-color: #111827 !important; border-right: 1px solid #1f2937; }}
     
-    /* Stats Cards */
     .metric-card {{
         background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
         padding: 20px; border-radius: 12px; border: 1px solid #334155; margin-bottom: 15px;
     }}
     
-    /* Aiva Professional Avatar */
     .aiva-avatar {{
         width: 80px; height: 80px;
         background: radial-gradient(circle, #3b82f6 0%, #1d4ed8 100%);
@@ -74,6 +72,12 @@ def get_audio_bytes(text):
     return None
 
 def fetch_response(user_input):
+    # --- SES ALGINAMA FİLTRESİ (Noise/Hallucination Filter) ---
+    # Whisper bazen sessizliği "Thank you" veya "Görüşürüz" sanabiliyor, onları eliyoruz.
+    hallucination_phrases = ["thank you", "thanks for watching", "görüşürüz", "bye bye", "teşekkürler"]
+    if len(user_input.strip()) < 2 or (user_input.lower().strip() in hallucination_phrases):
+        return "I'm sorry, I couldn't hear that clearly. Could you please repeat it?", "None"
+
     if "my name is" in user_input.lower():
         st.session_state.user_name = user_input.lower().split("is")[-1].strip().capitalize()
 
@@ -84,20 +88,21 @@ def fetch_response(user_input):
         f"You are AIVA, a professional and sophisticated English Language Mentor. "
         f"User: {st.session_state.user_name}. Level: {st.session_state.level}. "
         "STRICT GUIDELINES: "
-        "1. In the [Answer] part, act as a high-end personal coach. Use encouraging and elegant language. "
-        "2. DO NOT use slang like 'kanka', 'bro', 'dude', or 'mermi'. Be professional. "
-        "3. NEVER lecture the user in the [Answer] part. No 'you should say this'. Only conversation. "
-        "4. Put ALL corrections and learning tips STRICTLY in the [Fix] part. "
-        "5. If asked 'How are you?', respond like a poised professional ready for the session. "
+        "1. In the [Answer] part, act as a professional coach. Use encouraging and elegant language. "
+        "2. DO NOT use slang (no 'kanka', 'bro', 'dude'). "
+        "3. If the user input is nonsensical or a clear audio error, ask them to repeat. "
+        "4. NEVER lecture the user in the [Answer] part. No 'you should say this'. Only conversation. "
+        "5. Put ALL corrections and learning tips STRICTLY in the [Fix] part. "
+        "6. If asked 'How are you?', respond as a poised mentor ready to help. "
         "Format: [Mood: mood] | [Answer] | [Fix: correction or None]"
     )
 
     try:
-        # Son 10 mesajlık hafıza
         history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-10:]]
         response = client.chat.completions.create(
             messages=[{"role": "system", "content": sys_msg}] + history + [{"role": "user", "content": user_input}],
-            model="llama-3.1-8b-instant"
+            model="llama-3.1-8b-instant",
+            temperature=0.1 # Daha kararlı ve ciddi cevaplar için düşük sıcaklık
         )
         content = response.choices[0].message.content
         
@@ -114,7 +119,7 @@ def fetch_response(user_input):
         return f"System check required: {str(e)}", ""
 
 # ==========================================
-# 📊 SIDEBAR (DASHBOARD)
+# 📊 SIDEBAR (ANALYTICS)
 # ==========================================
 with st.sidebar:
     st.markdown("<h2 style='text-align: center; color: #60a5fa;'>AIVA CORE</h2>", unsafe_allow_html=True)
@@ -129,8 +134,7 @@ with st.sidebar:
     st.session_state.level = st.select_slider("Coaching Level", options=["A1", "A2", "B1", "B2"], value=st.session_state.level)
     
     if st.button("Initialize New Session", use_container_width=True):
-        st.session_state.messages = []
-        st.session_state.stats = {"total_words": 0, "mistakes": 0}
+        st.session_state.messages = []; st.session_state.stats = {"total_words": 0, "mistakes": 0}
         st.rerun()
 
 # ==========================================
@@ -144,16 +148,13 @@ st.markdown("""
     </div>
     """, unsafe_allow_html=True)
 
-# Otomatik Ses Tetikleyici
 if st.session_state.audio_queue:
     st.audio(st.session_state.audio_queue, format="audio/mp3", autoplay=True)
     st.session_state.audio_queue = None
 
-# Chat Akışı
 for m in st.session_state.messages:
     with st.chat_message(m["role"]): st.markdown(m["content"])
 
-# Giriş Bölümü
 st.divider()
 input_col, mic_col = st.columns([5, 1])
 
@@ -163,7 +164,7 @@ with mic_col:
 with input_col:
     user_query = st.chat_input("Compose your message to AIVA...")
 
-# İşleme Mantığı
+# --- PROCESSING ---
 final_text = None
 if audio_data and st.session_state.last_audio_id != audio_data['id']:
     st.session_state.last_audio_id = audio_data['id']
@@ -189,7 +190,7 @@ if final_text:
         st.session_state.audio_queue = get_audio_bytes(answer)
     st.rerun()
 
-# --- ANALİZ PANELİ (Dersi buraya hapsediyoruz) ---
+# --- ANALYSIS PANEL ---
 if st.session_state.last_fix and "None" not in st.session_state.last_fix:
     st.markdown(f"""
         <div style='background-color: #1e293b; padding: 15px; border-radius: 8px; border: 1px dashed #eab308; margin-top: 10px;'>
