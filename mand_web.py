@@ -1,4 +1,4 @@
-import streamlit as st
+,import streamlit as st
 from openai import OpenAI
 from gtts import gTTS
 import os
@@ -79,9 +79,15 @@ def fetch_response(user_input):
 
     st.session_state.stats["total_words"] += len(user_input.split())
     
+    # --- BURASI CEVABI KISALTAN KRİTİK KOMUTLAR ---
     sys_msg = (
         f"You are AIVA, a professional and sophisticated English Language Mentor. "
         f"User: {st.session_state.user_name}. Level: {st.session_state.level}. "
+        "STRICT GUIDELINES: "
+        "1. Keep your [Answer] part very CONCISE and BRIEF (Maximum 1-2 short sentences). "
+        "2. Do not give long lectures or explanations in the [Answer]. "
+        "3. Focus on keeping the conversation flowing quickly. "
+        "4. Put ONLY corrections in the [Fix] part. "
         "Format: [Mood: mood] | [Answer] | [Fix: correction or None]"
     )
 
@@ -152,8 +158,8 @@ with mic_col:
 with input_col:
     user_query = st.chat_input("Compose your message to AIVA...")
 
-# --- PROCESSING (HATANIN ÇÖZÜLDÜĞÜ YER) ---
-final_text = None  # Önce boş olarak tanımlıyoruz
+# --- PROCESSING ---
+final_text = None 
 
 if audio_data and st.session_state.last_audio_id != audio_data['id']:
     st.session_state.last_audio_id = audio_data['id']
@@ -168,7 +174,6 @@ if audio_data and st.session_state.last_audio_id != audio_data['id']:
 elif user_query:
     final_text = user_query
 
-# final_text artık her durumda tanımlı, ya None ya da bir yazı
 if final_text:
     st.session_state.messages.append({"role": "user", "content": final_text})
     with st.chat_message("user"): st.markdown(final_text)
