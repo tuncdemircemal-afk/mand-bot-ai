@@ -1,22 +1,22 @@
 import streamlit as st
 from openai import OpenAI
-from gtts import gTTS.
+from gtts import gTTS
 import os
 import uuid
 import hashlib
 from audio_recorder_streamlit import audio_recorder
 
 # ==========================================
-# ⚙️ CONFIGURATION & SECURITY
+# CONFIGURATION & SECURITY
 # ==========================================
 API_KEY = "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"
 client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEY)
 
 # ==========================================
-# 🧠 SESSION MANAGEMENT
+# SESSION MANAGEMENT
 # ==========================================
 if "messages" not in st.session_state: st.session_state.messages = []
-if "user_name" not in st.session_state: st.session_state.user_name = "Pilot"
+if "user_name" not in st.session_state: st.session_state.user_name = "User"
 if "stats" not in st.session_state: st.session_state.stats = {"total_words": 0, "mistakes": 0}
 if "level" not in st.session_state: st.session_state.level = "B1"
 if "last_fix" not in st.session_state: st.session_state.last_fix = ""
@@ -25,9 +25,9 @@ if "is_speaking" not in st.session_state: st.session_state.is_speaking = False
 if "last_audio_hash" not in st.session_state: st.session_state.last_audio_hash = None
 
 # ==========================================
-# 🎨 UI & ROBOT ANIMATION (CSS)
+# UI & ROBOT ANIMATION (CSS)
 # ==========================================
-st.set_page_config(page_title="AIVA | AI ASISTANT", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="AIVA | AI Mentor", layout="wide")
 
 st.markdown("""
     <style>
@@ -54,7 +54,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 🎙️ AUDIO & AI CORE
+# AUDIO & AI CORE
 # ==========================================
 def get_audio_bytes(text):
     if text:
@@ -70,9 +70,9 @@ def get_audio_bytes(text):
 
 def fetch_response(user_input):
     sys_msg = (
-        f"You are AIVA, a professional Aviation & English Mentor. "
+        f"You are AIVA, a professional English Language Mentor. "
         f"User: {st.session_state.user_name}. Level: {st.session_state.level}. "
-        "GUIDELINES: Be professional. Keep the [Answer] very CONCISE (1-2 sentences). "
+        "GUIDELINES: Be direct. Keep the [Answer] concise (1-2 sentences). "
         "Format: [Mood: mood] | [Answer] | [Fix: correction or None]"
     )
     try:
@@ -88,35 +88,35 @@ def fetch_response(user_input):
             ans = parts[1].strip() if len(parts) > 1 else content
             fix = parts[2].replace("[Fix:", "").replace("]", "").strip() if len(parts) > 2 else "None"
         return ans, fix
-    except: return "Link failure. Check your connection.", "None"
+    except: return "Connection error. Please check network status.", "None"
 
 # ==========================================
-# 📊 SIDEBAR (FULL ENGLISH)
+# SIDEBAR
 # ==========================================
 with st.sidebar:
     st.markdown("<h2 style='text-align: center; color: #60a5fa;'>AIVA CONTROL</h2>", unsafe_allow_html=True)
     st.markdown(f"""
         <div class="metric-card">
-            <small style='color: #94a3b8;'>FLIGHT ANALYTICS</small><br>
-            <span style='font-size: 1.1em;'>📝 {st.session_state.stats['total_words']} Total Words</span><br>
-            <span style='font-size: 1.1em; color: #fbbf24;'>⚠️ {st.session_state.stats['mistakes']} Alert Points</span>
+            <small style='color: #94a3b8;'>LEARNING ANALYTICS</small><br>
+            <span style='font-size: 1.1em;'>Total Words: {st.session_state.stats['total_words']}</span><br>
+            <span style='font-size: 1.1em; color: #fbbf24;'>Feedback Points: {st.session_state.stats['mistakes']}</span>
         </div>
     """, unsafe_allow_html=True)
     
-    st.session_state.level = st.select_slider("Coaching Level", options=["A1", "A2", "B1", "B2"], value=st.session_state.level)
+    st.session_state.level = st.select_slider("Language Level", options=["A1", "A2", "B1", "B2"], value=st.session_state.level)
     
-    if st.button("Reset Flight Log", use_container_width=True):
+    if st.button("Reset Session", use_container_width=True):
         st.session_state.messages = []; st.session_state.stats = {"total_words": 0, "mistakes": 0}; st.session_state.last_fix = ""; st.rerun()
 
 # ==========================================
-# 🤖 INTERFACE
+# INTERFACE
 # ==========================================
 talking_class = "talking" if st.session_state.is_speaking else ""
 st.markdown(f"""
     <div class="robot-container">
         <div class="robot-head"><div class="eye left"></div><div class="eye right"></div><div class="mouth {talking_class}"></div></div>
         <h3 style='margin-top: 10px;'>AIVA Intelligence</h3>
-        <small style='color: #10b981;'>• ATC Voice Link Active</small>
+        <small style='color: #10b981;'>System Online</small>
     </div>
     """, unsafe_allow_html=True)
 
@@ -131,17 +131,17 @@ for m in st.session_state.messages:
 st.divider()
 
 # ==========================================
-# 🎙️ HANDS-FREE INPUT
+# HANDS-FREE INPUT
 # ==========================================
-st.write("Push to talk, then wait for ATC response...")
+st.write("Voice Input: Click to speak and wait for processing.")
 audio_bytes = audio_recorder(
-    text="Click to start link...",
+    text="Click to speak",
     recording_color="#e24a4a",
     neutral_color="#60a5fa",
     icon_size="2x",
 )
 
-user_query = st.chat_input("Or type your coordinates...")
+user_query = st.chat_input("Type your message here")
 
 # --- PROCESSING ---
 final_text = None 
@@ -150,13 +150,13 @@ if audio_bytes:
     current_hash = hashlib.md5(audio_bytes).hexdigest()
     if st.session_state.last_audio_hash != current_hash:
         st.session_state.last_audio_hash = current_hash
-        with st.spinner("Decoding transmission..."):
+        with st.spinner("Processing..."):
             try:
                 with open("temp.wav", "wb") as f: f.write(audio_bytes)
                 with open("temp.wav", "rb") as f:
                     transcription = client.audio.transcriptions.create(file=("temp.wav", f.read()), model="whisper-large-v3", response_format="text")
                 final_text = transcription
-            except: st.error("Comms error.")
+            except: st.error("Recording error.")
 elif user_query:
     final_text = user_query
 
@@ -178,6 +178,6 @@ if final_text:
 if st.session_state.last_fix and "None" not in st.session_state.last_fix:
     st.markdown(f"""
         <div style='background-color: #1e293b; padding: 15px; border-radius: 8px; border: 1px dashed #eab308; margin-top: 10px; color: #fbbf24;'>
-            <b>📊 Instructor Note:</b><br>{st.session_state.last_fix}
+            <b>Mentor Note:</b><br>{st.session_state.last_fix}
         </div>
     """, unsafe_allow_html=True)
