@@ -13,7 +13,6 @@ from streamlit_mic_recorder import mic_recorder
 # API Anahtarı
 API_KEY = "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"
 
-
 client = OpenAI(
     base_url="https://api.groq.com/openai/v1",
     api_key=API_KEY
@@ -72,7 +71,7 @@ def get_audio_bytes(text):
 
 def fetch_response(user_input):
     hallucination_phrases = ["thank you", "thanks for watching", "görüşürüz", "bye bye", "teşekkürler"]
-    if len(user_input.strip()) < 2 or (user_input.lower().strip() in hallucination_phrases):
+    if not user_input or len(user_input.strip()) < 2 or (user_input.lower().strip() in hallucination_phrases):
         return "I'm sorry, I couldn't hear that clearly. Could you please repeat it?", "None"
 
     if "my name is" in user_input.lower():
@@ -107,7 +106,9 @@ def fetch_response(user_input):
     except Exception as e:
         return f"System check required: {str(e)}", ""
 
-# --- ARAYÜZ VE DİĞER KISIMLAR ---
+# ==========================================
+# 📊 SIDEBAR
+# ==========================================
 with st.sidebar:
     st.markdown("<h2 style='text-align: center; color: #60a5fa;'>AIVA CORE</h2>", unsafe_allow_html=True)
     st.markdown(f"""
@@ -124,6 +125,9 @@ with st.sidebar:
         st.session_state.messages = []; st.session_state.stats = {"total_words": 0, "mistakes": 0}
         st.rerun()
 
+# ==========================================
+# 💬 CHAT UI
+# ==========================================
 st.markdown("""
     <div style='text-align: center; margin-bottom: 20px;'>
         <div class="aiva-avatar">🌐</div>
@@ -148,16 +152,23 @@ with mic_col:
 with input_col:
     user_query = st.chat_input("Compose your message to AIVA...")
 
+# --- PROCESSING (HATANIN ÇÖZÜLDÜĞÜ YER) ---
+final_text = None  # Önce boş olarak tanımlıyoruz
+
 if audio_data and st.session_state.last_audio_id != audio_data['id']:
     st.session_state.last_audio_id = audio_data['id']
     with st.spinner("Analyzing audio..."):
-        with open("raw.wav", "wb") as f: f.write(audio_data['bytes'])
-        with open("raw.wav", "rb") as f:
-            transcription = client.audio.transcriptions.create(file=("raw.wav", f.read()), model="whisper-large-v3", response_format="text")
-        final_text = transcription
+        try:
+            with open("raw.wav", "wb") as f: f.write(audio_data['bytes'])
+            with open("raw.wav", "rb") as f:
+                transcription = client.audio.transcriptions.create(file=("raw.wav", f.read()), model="whisper-large-v3", response_format="text")
+            final_text = transcription
+        except Exception as e:
+            st.error(f"Audio Error: {e}")
 elif user_query:
     final_text = user_query
 
+# final_text artık her durumda tanımlı, ya None ya da bir yazı
 if final_text:
     st.session_state.messages.append({"role": "user", "content": final_text})
     with st.chat_message("user"): st.markdown(final_text)
