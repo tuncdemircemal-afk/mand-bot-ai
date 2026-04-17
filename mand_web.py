@@ -27,7 +27,7 @@ if "last_audio_hash" not in st.session_state: st.session_state.last_audio_hash =
 # ==========================================
 # 🎨 UI & ROBOT ANIMATION (CSS)
 # ==========================================
-st.set_page_config(page_title="AIVA | AI Flight Mentor", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="AIVA | AI ASISTANT", page_icon="🤖", layout="wide")
 
 st.markdown("""
     <style>
