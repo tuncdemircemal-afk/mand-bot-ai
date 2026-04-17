@@ -4,3 +4,4 @@ openai
 gTTS
 streamlit-lottie
 requests
+audio-recorder-streamlit
