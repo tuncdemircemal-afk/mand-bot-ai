@@ -10,13 +10,13 @@ from streamlit_mic_recorder import mic_recorder
 # ⚙️ CONFIGURATION & SECURITY
 # ==========================================
 
-# API Anahtarı (Burayı kendi anahtarınla kontrol et kanka)
-API_KEY = "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"
+
+API_KEY = "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"
 
 client = OpenAI(
     base_url="https://api.groq.com/openai/v1",
     api_key=API_KEY
-)
+
 
 # ==========================================
 # 🧠 SESSION MANAGEMENT (Kullanıcı Verileri)
@@ -72,8 +72,6 @@ def get_audio_bytes(text):
     return None
 
 def fetch_response(user_input):
-    # --- SES ALGINAMA FİLTRESİ (Noise/Hallucination Filter) ---
-    # Whisper bazen sessizliği "Thank you" veya "Görüşürüz" sanabiliyor, onları eliyoruz.
     hallucination_phrases = ["thank you", "thanks for watching", "görüşürüz", "bye bye", "teşekkürler"]
     if len(user_input.strip()) < 2 or (user_input.lower().strip() in hallucination_phrases):
         return "I'm sorry, I couldn't hear that clearly. Could you please repeat it?", "None"
@@ -83,17 +81,14 @@ def fetch_response(user_input):
 
     st.session_state.stats["total_words"] += len(user_input.split())
     
-    # --- PROFESYONEL MENTOR TALİMATI ---
     sys_msg = (
         f"You are AIVA, a professional and sophisticated English Language Mentor. "
         f"User: {st.session_state.user_name}. Level: {st.session_state.level}. "
         "STRICT GUIDELINES: "
         "1. In the [Answer] part, act as a professional coach. Use encouraging and elegant language. "
-        "2. DO NOT use slang (no 'kanka', 'bro', 'dude'). "
-        "3. If the user input is nonsensical or a clear audio error, ask them to repeat. "
-        "4. NEVER lecture the user in the [Answer] part. No 'you should say this'. Only conversation. "
-        "5. Put ALL corrections and learning tips STRICTLY in the [Fix] part. "
-        "6. If asked 'How are you?', respond as a poised mentor ready to help. "
+        "2. DO NOT use slang. "
+        "3. If the user input is nonsensical, ask them to repeat. "
+        "4. Put ALL corrections and learning tips STRICTLY in the [Fix] part. "
         "Format: [Mood: mood] | [Answer] | [Fix: correction or None]"
     )
 
@@ -102,7 +97,7 @@ def fetch_response(user_input):
         response = client.chat.completions.create(
             messages=[{"role": "system", "content": sys_msg}] + history + [{"role": "user", "content": user_input}],
             model="llama-3.1-8b-instant",
-            temperature=0.1 # Daha kararlı ve ciddi cevaplar için düşük sıcaklık
+            temperature=0.1 
         )
         content = response.choices[0].message.content
         
