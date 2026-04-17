@@ -4,29 +4,13 @@ from gtts import gTTS
 import os
 import base64
 import uuid
-import requests  # Yeni eklendi
-from streamlit_lottie import st_lottie  # Yeni eklendi
 from streamlit_mic_recorder import mic_recorder
 
 # ==========================================
 # ⚙️ CONFIGURATION & SECURITY
 # ==========================================
 API_KEY = "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"
-
-client = OpenAI(
-    base_url="https://api.groq.com/openai/v1",
-    api_key=API_KEY
-)
-
-# --- Animasyon Yükleme Fonksiyonu ---
-def load_lottieurl(url: str):
-    r = requests.get(url)
-    if r.status_code != 200:
-        return None
-    return r.json()
-
-# Buraya tatlı bir robot animasyonu linki koydum
-lottie_robot = load_lottieurl("https://assets5.lottiefiles.com/packages/lf20_at6m90sz.json")
+client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEY)
 
 # ==========================================
 # 🧠 SESSION MANAGEMENT
@@ -35,30 +19,64 @@ if "messages" not in st.session_state: st.session_state.messages = []
 if "user_name" not in st.session_state: st.session_state.user_name = "Guest"
 if "stats" not in st.session_state: st.session_state.stats = {"total_words": 0, "mistakes": 0}
 if "level" not in st.session_state: st.session_state.level = "A1"
-if "mood" not in st.session_state: st.session_state.mood = "neutral"
 if "last_fix" not in st.session_state: st.session_state.last_fix = ""
 if "audio_queue" not in st.session_state: st.session_state.audio_queue = None
 if "last_audio_id" not in st.session_state: st.session_state.last_audio_id = None
+if "is_speaking" not in st.session_state: st.session_state.is_speaking = False
 
 # ==========================================
-# 🎨 UI DESIGN (CSS Güncellendi)
+# 🎨 UI & ROBOT ANIMATION (CSS)
 # ==========================================
 st.set_page_config(page_title="AIVA | Intelligent Mentor", page_icon="🤖", layout="wide")
 
+# Robotun ağzını oynatan sihirli CSS burası kanka
 st.markdown("""
     <style>
     .stApp { background-color: #0b0f19; color: #e2e8f0; }
-    .stSidebar { background-color: #111827 !important; border-right: 1px solid #1f2937; }
-    .metric-card {
-        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-        padding: 20px; border-radius: 12px; border: 1px solid #334155; margin-bottom: 15px;
+    
+    /* Robot Kafa Konteynırı */
+    .robot-container {
+        display: flex; justify-content: center; align-items: center;
+        flex-direction: column; padding: 20px;
     }
-    /* Eski avatar stilini sildik, Lottie kullanacağız */
+    
+    .robot-head {
+        width: 150px; height: 150px;
+        background: #1e293b; border: 4px solid #3b82f6;
+        border-radius: 30px; position: relative;
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+    }
+    
+    /* Gözler */
+    .eye {
+        width: 30px; height: 10px;
+        background: #60a5fa; position: absolute; top: 50px;
+        border-radius: 5px; box-shadow: 0 0 10px #60a5fa;
+    }
+    .eye.left { left: 25px; }
+    .eye.right { right: 25px; }
+    
+    /* AĞIZ - Konuşma Animasyonu */
+    .mouth {
+        width: 60px; height: 8px;
+        background: #60a5fa; position: absolute; bottom: 35px; left: 45px;
+        border-radius: 10px; transition: all 0.2s;
+    }
+    
+    /* Konuşma sırasında tetiklenen class */
+    .talking {
+        animation: speech 0.3s infinite alternate;
+    }
+    
+    @keyframes speech {
+        0% { height: 8px; bottom: 35px; }
+        100% { height: 25px; bottom: 25px; }
+    }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 🎙️ AUDIO & AI LOGIC (Aynı Kalıyor)
+# 🎙️ AUDIO & AI LOGIC
 # ==========================================
 def get_audio_bytes(text):
     if text:
@@ -73,131 +91,93 @@ def get_audio_bytes(text):
     return None
 
 def fetch_response(user_input):
-    hallucination_phrases = ["thank you", "thanks for watching", "görüşürüz", "bye bye", "teşekkürler"]
-    if not user_input or len(user_input.strip()) < 2 or (user_input.lower().strip() in hallucination_phrases):
-        return "I'm sorry, I couldn't hear that clearly. Could you please repeat it?", "None"
-
-    if "my name is" in user_input.lower():
-        st.session_state.user_name = user_input.lower().split("is")[-1].strip().capitalize()
-
-    st.session_state.stats["total_words"] += len(user_input.split())
-    
     sys_msg = (
-        f"You are AIVA, a professional and sophisticated English Language Mentor. "
+        f"You are AIVA, a professional English Language Mentor. "
         f"User: {st.session_state.user_name}. Level: {st.session_state.level}. "
-        "STRICT GUIDELINES: "
-        "1. Keep your [Answer] part very CONCISE and BRIEF (Maximum 1-2 short sentences). "
-        "2. Do not give long lectures or explanations. "
-        "3. Put ONLY corrections in the [Fix] part. "
+        "STRICT GUIDELINES: Keep your [Answer] part very CONCISE (1-2 short sentences). "
         "Format: [Mood: mood] | [Answer] | [Fix: correction or None]"
     )
-
     try:
-        history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-10:]]
+        history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-5:]]
         response = client.chat.completions.create(
             messages=[{"role": "system", "content": sys_msg}] + history + [{"role": "user", "content": user_input}],
-            model="llama-3.1-8b-instant",
-            temperature=0.1 
+            model="llama-3.1-8b-instant", temperature=0.1 
         )
         content = response.choices[0].message.content
-        mood, ans, fix = "neutral", content, ""
+        ans, fix = content, ""
         if "|" in content:
             parts = content.split("|")
-            mood = parts[0].replace("[Mood:", "").replace("]", "").strip().lower()
             ans = parts[1].strip() if len(parts) > 1 else content
             fix = parts[2].replace("[Fix:", "").replace("]", "").strip() if len(parts) > 2 else ""
-        st.session_state.mood = mood
         return ans, fix
-    except Exception as e:
-        return f"System check required: {str(e)}", ""
+    except: return "I'm having trouble connecting.", ""
 
 # ==========================================
-# 📊 SIDEBAR (Aynı Kalıyor)
+# 🤖 ROBOT DISPLAY LOGIC
 # ==========================================
-with st.sidebar:
-    st.markdown("<h2 style='text-align: center; color: #60a5fa;'>AIVA CORE</h2>", unsafe_allow_html=True)
-    st.markdown(f"""
-        <div class="metric-card">
-            <small style='color: #94a3b8;'>SESSION ANALYTICS</small><br>
-            <span style='font-size: 1.1em;'>📝 {st.session_state.stats['total_words']} Words</span><br>
-            <span style='font-size: 1.1em; color: #fbbf24;'>⚠️ {st.session_state.stats['mistakes']} Feedback Points</span>
+# Eğer bot konuşuyorsa (audio_queue doluysa) 'talking' class'ını ekliyoruz
+talking_class = "talking" if st.session_state.is_speaking else ""
+
+st.markdown(f"""
+    <div class="robot-container">
+        <div class="robot-head">
+            <div class="eye left"></div>
+            <div class="eye right"></div>
+            <div class="mouth {talking_class}"></div>
         </div>
-    """, unsafe_allow_html=True)
-    st.session_state.level = st.select_slider("Coaching Level", options=["A1", "A2", "B1", "B2"], value=st.session_state.level)
-    if st.button("Initialize New Session", use_container_width=True):
-        st.session_state.messages = []; st.session_state.stats = {"total_words": 0, "mistakes": 0}
-        st.rerun()
-
-# ==========================================
-# 💬 CHAT UI (Robot Yüzü Buraya Geldi!)
-# ==========================================
-# Eski avatar div'ini sildik, yerine Lottie animasyonunu koyduk
-col1, col2, col3 = st.columns([1, 1, 1])
-with col2:
-    if lottie_robot:
-        st_lottie(lottie_robot, height=200, key="aiva_bot")
-    else:
-        st.markdown("<h1 style='text-align: center;'>🤖</h1>", unsafe_allow_html=True)
-
-st.markdown("""
-    <div style='text-align: center; margin-bottom: 20px;'>
-        <h3 style='margin-bottom: 0;'>AIVA Intelligence</h3>
-        <small style='color: #10b981;'>• Mentor Connected</small>
+        <h3 style='margin-top: 15px;'>AIVA Intelligence</h3>
     </div>
     """, unsafe_allow_html=True)
 
-# --- Diğer kısımlar (Mesaj döngüsü, Input vb.) aynı kalıyor ---
+# ==========================================
+# 💬 CHAT INTERFACE
+# ==========================================
+with st.sidebar:
+    st.title("AIVA CORE")
+    st.session_state.level = st.select_slider("Level", options=["A1", "A2", "B1", "B2"], value=st.session_state.level)
+
 if st.session_state.audio_queue:
     st.audio(st.session_state.audio_queue, format="audio/mp3", autoplay=True)
     st.session_state.audio_queue = None
+    st.session_state.is_speaking = False # Ses çalmaya başlayınca animasyon durmasın diye bunu manuel yönetebilirsin
 
 for m in st.session_state.messages:
     with st.chat_message(m["role"]): st.markdown(m["content"])
 
-st.divider()
 input_col, mic_col = st.columns([5, 1])
-
 with mic_col:
     audio_data = mic_recorder(start_prompt="Speak", stop_prompt="Process", key='voice_input')
-
 with input_col:
-    user_query = st.chat_input("Compose your message to AIVA...")
+    user_query = st.chat_input("Message AIVA...")
 
 # --- PROCESSING ---
 final_text = None 
 if audio_data and st.session_state.last_audio_id != audio_data['id']:
     st.session_state.last_audio_id = audio_data['id']
-    with st.spinner("Analyzing audio..."):
+    with st.spinner("Analyzing..."):
         try:
             with open("raw.wav", "wb") as f: f.write(audio_data['bytes'])
             with open("raw.wav", "rb") as f:
                 transcription = client.audio.transcriptions.create(file=("raw.wav", f.read()), model="whisper-large-v3", response_format="text")
             final_text = transcription
-        except Exception as e:
-            st.error(f"Audio Error: {e}")
+        except: st.error("Audio error.")
 elif user_query:
     final_text = user_query
 
 if final_text:
     st.session_state.messages.append({"role": "user", "content": final_text})
     with st.chat_message("user"): st.markdown(final_text)
+    
     with st.chat_message("assistant"):
         answer, correction = fetch_response(final_text)
         st.markdown(answer)
         st.session_state.messages.append({"role": "assistant", "content": answer})
         st.session_state.last_fix = correction
-        if correction and "None" not in correction:
-            st.session_state.stats["mistakes"] += 1
+        
+        # Animasyonu tetikle kanka
+        st.session_state.is_speaking = True 
         st.session_state.audio_queue = get_audio_bytes(answer)
     st.rerun()
 
 if st.session_state.last_fix and "None" not in st.session_state.last_fix:
-    st.markdown(f"""
-        <div style='background-color: #1e293b; padding: 15px; border-radius: 8px; border: 1px dashed #eab308; margin-top: 10px;'>
-            <p style='color: #fbbf24; margin-bottom: 5px;'><b>📊 Mentor's Learning Note:</b></p>
-            <p style='font-style: italic; color: #cbd5e1;'>{st.session_state.last_fix}</p>
-        </div>
-    """, unsafe_allow_html=True)
-    if st.button("Listen to Analysis"):
-        st.session_state.audio_queue = get_audio_bytes(st.session_state.last_fix)
-        st.rerun()
+    st.info(f"📊 Mentor's Note: {st.session_state.last_fix}")
