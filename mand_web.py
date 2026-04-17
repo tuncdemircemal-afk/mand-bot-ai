@@ -29,47 +29,43 @@ if "is_speaking" not in st.session_state: st.session_state.is_speaking = False
 # ==========================================
 st.set_page_config(page_title="AIVA | Intelligent Mentor", page_icon="🤖", layout="wide")
 
-# Robotun ağzını oynatan sihirli CSS burası kanka
 st.markdown("""
     <style>
     .stApp { background-color: #0b0f19; color: #e2e8f0; }
+    .stSidebar { background-color: #111827 !important; border-right: 1px solid #1f2937; }
     
-    /* Robot Kafa Konteynırı */
+    /* İstatistik Kartları (Sol Taraf) */
+    .metric-card {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        padding: 20px; border-radius: 12px; border: 1px solid #334155; margin-bottom: 15px;
+    }
+    
+    /* Robot Tasarımı */
     .robot-container {
         display: flex; justify-content: center; align-items: center;
-        flex-direction: column; padding: 20px;
+        flex-direction: column; padding: 10px; margin-bottom: 20px;
     }
-    
     .robot-head {
-        width: 150px; height: 150px;
+        width: 140px; height: 140px;
         background: #1e293b; border: 4px solid #3b82f6;
         border-radius: 30px; position: relative;
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+        box-shadow: 0 0 25px rgba(59, 130, 246, 0.5);
     }
-    
-    /* Gözler */
     .eye {
-        width: 30px; height: 10px;
-        background: #60a5fa; position: absolute; top: 50px;
-        border-radius: 5px; box-shadow: 0 0 10px #60a5fa;
+        width: 30px; height: 8px;
+        background: #60a5fa; position: absolute; top: 45px;
+        border-radius: 5px; box-shadow: 0 0 15px #60a5fa;
     }
     .eye.left { left: 25px; }
     .eye.right { right: 25px; }
-    
-    /* AĞIZ - Konuşma Animasyonu */
     .mouth {
-        width: 60px; height: 8px;
+        width: 50px; height: 6px;
         background: #60a5fa; position: absolute; bottom: 35px; left: 45px;
         border-radius: 10px; transition: all 0.2s;
     }
-    
-    /* Konuşma sırasında tetiklenen class */
-    .talking {
-        animation: speech 0.3s infinite alternate;
-    }
-    
+    .talking { animation: speech 0.25s infinite alternate; }
     @keyframes speech {
-        0% { height: 8px; bottom: 35px; }
+        0% { height: 6px; bottom: 35px; }
         100% { height: 25px; bottom: 25px; }
     }
     </style>
@@ -94,7 +90,7 @@ def fetch_response(user_input):
     sys_msg = (
         f"You are AIVA, a professional English Language Mentor. "
         f"User: {st.session_state.user_name}. Level: {st.session_state.level}. "
-        "STRICT GUIDELINES: Keep your [Answer] part very CONCISE (1-2 short sentences). "
+        "STRICT GUIDELINES: Keep [Answer] very CONCISE (1-2 sentences). "
         "Format: [Mood: mood] | [Answer] | [Fix: correction or None]"
     )
     try:
@@ -104,18 +100,43 @@ def fetch_response(user_input):
             model="llama-3.1-8b-instant", temperature=0.1 
         )
         content = response.choices[0].message.content
-        ans, fix = content, ""
+        ans, fix = content, "None"
         if "|" in content:
             parts = content.split("|")
             ans = parts[1].strip() if len(parts) > 1 else content
-            fix = parts[2].replace("[Fix:", "").replace("]", "").strip() if len(parts) > 2 else ""
+            fix = parts[2].replace("[Fix:", "").replace("]", "").strip() if len(parts) > 2 else "None"
         return ans, fix
-    except: return "I'm having trouble connecting.", ""
+    except: return "Connection error. Check your API key.", "None"
 
 # ==========================================
-# 🤖 ROBOT DISPLAY LOGIC
+# 📊 SIDEBAR (ESKİ HALİNE DÖNDÜ)
 # ==========================================
-# Eğer bot konuşuyorsa (audio_queue doluysa) 'talking' class'ını ekliyoruz
+with st.sidebar:
+    st.markdown("<h2 style='text-align: center; color: #60a5fa;'>AIVA CORE</h2>", unsafe_allow_html=True)
+    
+    # İstatistikler
+    st.markdown(f"""
+        <div class="metric-card">
+            <small style='color: #94a3b8;'>SESSION ANALYTICS</small><br>
+            <span style='font-size: 1.1em;'>📝 {st.session_state.stats['total_words']} Words</span><br>
+            <span style='font-size: 1.1em; color: #fbbf24;'>⚠️ {st.session_state.stats['mistakes']} Feedback Points</span>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.session_state.level = st.select_slider("Coaching Level", options=["A1", "A2", "B1", "B2"], value=st.session_state.level)
+    
+    st.divider()
+    
+    # Sohbeti Sil / Yeni Oturum Butonu
+    if st.button("Initialize New Session", use_container_width=True):
+        st.session_state.messages = []
+        st.session_state.stats = {"total_words": 0, "mistakes": 0}
+        st.session_state.last_fix = ""
+        st.rerun()
+
+# ==========================================
+# 🤖 ROBOT DISPLAY
+# ==========================================
 talking_class = "talking" if st.session_state.is_speaking else ""
 
 st.markdown(f"""
@@ -125,25 +146,23 @@ st.markdown(f"""
             <div class="eye right"></div>
             <div class="mouth {talking_class}"></div>
         </div>
-        <h3 style='margin-top: 15px;'>AIVA Intelligence</h3>
+        <h3 style='margin-top: 10px;'>AIVA Intelligence</h3>
+        <small style='color: #10b981;'>• Mentor Connected</small>
     </div>
     """, unsafe_allow_html=True)
 
 # ==========================================
 # 💬 CHAT INTERFACE
 # ==========================================
-with st.sidebar:
-    st.title("AIVA CORE")
-    st.session_state.level = st.select_slider("Level", options=["A1", "A2", "B1", "B2"], value=st.session_state.level)
-
 if st.session_state.audio_queue:
     st.audio(st.session_state.audio_queue, format="audio/mp3", autoplay=True)
     st.session_state.audio_queue = None
-    st.session_state.is_speaking = False # Ses çalmaya başlayınca animasyon durmasın diye bunu manuel yönetebilirsin
+    st.session_state.is_speaking = False
 
 for m in st.session_state.messages:
     with st.chat_message(m["role"]): st.markdown(m["content"])
 
+st.divider()
 input_col, mic_col = st.columns([5, 1])
 with mic_col:
     audio_data = mic_recorder(start_prompt="Speak", stop_prompt="Process", key='voice_input')
@@ -165,6 +184,7 @@ elif user_query:
     final_text = user_query
 
 if final_text:
+    st.session_state.stats["total_words"] += len(final_text.split())
     st.session_state.messages.append({"role": "user", "content": final_text})
     with st.chat_message("user"): st.markdown(final_text)
     
@@ -174,10 +194,17 @@ if final_text:
         st.session_state.messages.append({"role": "assistant", "content": answer})
         st.session_state.last_fix = correction
         
-        # Animasyonu tetikle kanka
+        if correction and "None" not in correction:
+            st.session_state.stats["mistakes"] += 1
+            
         st.session_state.is_speaking = True 
         st.session_state.audio_queue = get_audio_bytes(answer)
     st.rerun()
 
 if st.session_state.last_fix and "None" not in st.session_state.last_fix:
-    st.info(f"📊 Mentor's Note: {st.session_state.last_fix}")
+    st.markdown(f"""
+        <div style='background-color: #1e293b; padding: 15px; border-radius: 8px; border: 1px dashed #eab308; margin-top: 10px;'>
+            <p style='color: #fbbf24; margin-bottom: 5px;'><b>📊 Mentor's Note:</b></p>
+            <p style='font-style: italic; color: #cbd5e1;'>{st.session_state.last_fix}</p>
+        </div>
+    """, unsafe_allow_html=True)
