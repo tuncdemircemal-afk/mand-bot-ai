@@ -4,19 +4,29 @@ from gtts import gTTS
 import os
 import base64
 import uuid
+import requests  # Yeni eklendi
+from streamlit_lottie import st_lottie  # Yeni eklendi
 from streamlit_mic_recorder import mic_recorder
 
 # ==========================================
 # ⚙️ CONFIGURATION & SECURITY
 # ==========================================
-
-# API Anahtarı
 API_KEY = "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"
 
 client = OpenAI(
     base_url="https://api.groq.com/openai/v1",
     api_key=API_KEY
 )
+
+# --- Animasyon Yükleme Fonksiyonu ---
+def load_lottieurl(url: str):
+    r = requests.get(url)
+    if r.status_code != 200:
+        return None
+    return r.json()
+
+# Buraya tatlı bir robot animasyonu linki koydum
+lottie_robot = load_lottieurl("https://assets5.lottiefiles.com/packages/lf20_at6m90sz.json")
 
 # ==========================================
 # 🧠 SESSION MANAGEMENT
@@ -31,9 +41,9 @@ if "audio_queue" not in st.session_state: st.session_state.audio_queue = None
 if "last_audio_id" not in st.session_state: st.session_state.last_audio_id = None
 
 # ==========================================
-# 🎨 UI DESIGN
+# 🎨 UI DESIGN (CSS Güncellendi)
 # ==========================================
-st.set_page_config(page_title="AIVA | Intelligent Mentor", page_icon="🌐", layout="wide")
+st.set_page_config(page_title="AIVA | Intelligent Mentor", page_icon="🤖", layout="wide")
 
 st.markdown("""
     <style>
@@ -43,19 +53,12 @@ st.markdown("""
         background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
         padding: 20px; border-radius: 12px; border: 1px solid #334155; margin-bottom: 15px;
     }
-    .aiva-avatar {
-        width: 80px; height: 80px;
-        background: radial-gradient(circle, #3b82f6 0%, #1d4ed8 100%);
-        border-radius: 50%; margin: 0 auto 10px;
-        display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.5); border: 2px solid #60a5fa;
-        font-size: 40px; color: white;
-    }
+    /* Eski avatar stilini sildik, Lottie kullanacağız */
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 🎙️ AUDIO & AI LOGIC
+# 🎙️ AUDIO & AI LOGIC (Aynı Kalıyor)
 # ==========================================
 def get_audio_bytes(text):
     if text:
@@ -79,15 +82,13 @@ def fetch_response(user_input):
 
     st.session_state.stats["total_words"] += len(user_input.split())
     
-    # --- BURASI CEVABI KISALTAN KRİTİK KOMUTLAR ---
     sys_msg = (
         f"You are AIVA, a professional and sophisticated English Language Mentor. "
         f"User: {st.session_state.user_name}. Level: {st.session_state.level}. "
         "STRICT GUIDELINES: "
         "1. Keep your [Answer] part very CONCISE and BRIEF (Maximum 1-2 short sentences). "
-        "2. Do not give long lectures or explanations in the [Answer]. "
-        "3. Focus on keeping the conversation flowing quickly. "
-        "4. Put ONLY corrections in the [Fix] part. "
+        "2. Do not give long lectures or explanations. "
+        "3. Put ONLY corrections in the [Fix] part. "
         "Format: [Mood: mood] | [Answer] | [Fix: correction or None]"
     )
 
@@ -99,21 +100,19 @@ def fetch_response(user_input):
             temperature=0.1 
         )
         content = response.choices[0].message.content
-        
         mood, ans, fix = "neutral", content, ""
         if "|" in content:
             parts = content.split("|")
             mood = parts[0].replace("[Mood:", "").replace("]", "").strip().lower()
             ans = parts[1].strip() if len(parts) > 1 else content
             fix = parts[2].replace("[Fix:", "").replace("]", "").strip() if len(parts) > 2 else ""
-        
         st.session_state.mood = mood
         return ans, fix
     except Exception as e:
         return f"System check required: {str(e)}", ""
 
 # ==========================================
-# 📊 SIDEBAR
+# 📊 SIDEBAR (Aynı Kalıyor)
 # ==========================================
 with st.sidebar:
     st.markdown("<h2 style='text-align: center; color: #60a5fa;'>AIVA CORE</h2>", unsafe_allow_html=True)
@@ -124,24 +123,30 @@ with st.sidebar:
             <span style='font-size: 1.1em; color: #fbbf24;'>⚠️ {st.session_state.stats['mistakes']} Feedback Points</span>
         </div>
     """, unsafe_allow_html=True)
-    
     st.session_state.level = st.select_slider("Coaching Level", options=["A1", "A2", "B1", "B2"], value=st.session_state.level)
-    
     if st.button("Initialize New Session", use_container_width=True):
         st.session_state.messages = []; st.session_state.stats = {"total_words": 0, "mistakes": 0}
         st.rerun()
 
 # ==========================================
-# 💬 CHAT UI
+# 💬 CHAT UI (Robot Yüzü Buraya Geldi!)
 # ==========================================
+# Eski avatar div'ini sildik, yerine Lottie animasyonunu koyduk
+col1, col2, col3 = st.columns([1, 1, 1])
+with col2:
+    if lottie_robot:
+        st_lottie(lottie_robot, height=200, key="aiva_bot")
+    else:
+        st.markdown("<h1 style='text-align: center;'>🤖</h1>", unsafe_allow_html=True)
+
 st.markdown("""
     <div style='text-align: center; margin-bottom: 20px;'>
-        <div class="aiva-avatar">🌐</div>
         <h3 style='margin-bottom: 0;'>AIVA Intelligence</h3>
         <small style='color: #10b981;'>• Mentor Connected</small>
     </div>
     """, unsafe_allow_html=True)
 
+# --- Diğer kısımlar (Mesaj döngüsü, Input vb.) aynı kalıyor ---
 if st.session_state.audio_queue:
     st.audio(st.session_state.audio_queue, format="audio/mp3", autoplay=True)
     st.session_state.audio_queue = None
@@ -160,7 +165,6 @@ with input_col:
 
 # --- PROCESSING ---
 final_text = None 
-
 if audio_data and st.session_state.last_audio_id != audio_data['id']:
     st.session_state.last_audio_id = audio_data['id']
     with st.spinner("Analyzing audio..."):
@@ -177,7 +181,6 @@ elif user_query:
 if final_text:
     st.session_state.messages.append({"role": "user", "content": final_text})
     with st.chat_message("user"): st.markdown(final_text)
-    
     with st.chat_message("assistant"):
         answer, correction = fetch_response(final_text)
         st.markdown(answer)
