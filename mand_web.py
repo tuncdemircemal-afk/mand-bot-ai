@@ -7,13 +7,13 @@ import hashlib
 from audio_recorder_streamlit import audio_recorder
 
 # ==========================================
-# CONFIGURATION & SECURITY
+# YAPILANDIRMA VE GÜVENLİK
 # ==========================================
 API_KEY = "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"
 client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEY)
 
 # ==========================================
-# SESSION MANAGEMENT
+# OTURUM YÖNETİMİ
 # ==========================================
 if "messages" not in st.session_state: st.session_state.messages = []
 if "user_name" not in st.session_state: st.session_state.user_name = "User"
@@ -25,7 +25,7 @@ if "is_speaking" not in st.session_state: st.session_state.is_speaking = False
 if "last_audio_hash" not in st.session_state: st.session_state.last_audio_hash = None
 
 # ==========================================
-# UI & ROBOT ANIMATION (CSS)
+# UI VE ROBOT ANİMASYONU (CSS)
 # ==========================================
 st.set_page_config(page_title="AIVA | AI Mentor", layout="wide")
 
@@ -54,7 +54,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# AUDIO & AI CORE
+# SES VE AI ÇEKİRDEĞİ
 # ==========================================
 def get_audio_bytes(text):
     if text:
@@ -91,7 +91,7 @@ def fetch_response(user_input):
     except: return "Connection error. Please check network status.", "None"
 
 # ==========================================
-# SIDEBAR
+# YAN PANEL (SIDEBAR)
 # ==========================================
 with st.sidebar:
     st.markdown("<h2 style='text-align: center; color: #60a5fa;'>AIVA CONTROL</h2>", unsafe_allow_html=True)
@@ -109,7 +109,7 @@ with st.sidebar:
         st.session_state.messages = []; st.session_state.stats = {"total_words": 0, "mistakes": 0}; st.session_state.last_fix = ""; st.rerun()
 
 # ==========================================
-# INTERFACE
+# ARAYÜZ VE ROBOT
 # ==========================================
 talking_class = "talking" if st.session_state.is_speaking else ""
 st.markdown(f"""
@@ -131,19 +131,20 @@ for m in st.session_state.messages:
 st.divider()
 
 # ==========================================
-# HANDS-FREE INPUT
+# SES GİRİŞİ (SESSİZLİK AYARI YAPILDI)
 # ==========================================
-st.write("Voice Input: Click to speak and wait for processing.")
+st.write("Voice Input: Click and speak. System waits for 3 seconds of silence.")
 audio_bytes = audio_recorder(
     text="Click to speak",
     recording_color="#e24a4a",
     neutral_color="#60a5fa",
     icon_size="2x",
+    pause_threshold=3.0 # <--- BURASI: 3 saniye sessizlik bekler
 )
 
 user_query = st.chat_input("Type your message here")
 
-# --- PROCESSING ---
+# --- İŞLEME ---
 final_text = None 
 
 if audio_bytes:
