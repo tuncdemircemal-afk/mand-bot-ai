@@ -6,7 +6,7 @@ import uuid
 import hashlib # Yeni sesleri ayırt etmek için
 from audio_recorder_streamlit import audio_recorder # Yeni kütüphane
 from streamlit_mic_recorder import mic_recorder # Eskisi de kalsın ne olur ne olmaz
-
+.
 # ==========================================
 # ⚙️ CONFIGURATION & SECURITY
 # ==========================================
