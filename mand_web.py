@@ -10,16 +10,17 @@ from streamlit_mic_recorder import mic_recorder
 # ⚙️ CONFIGURATION & SECURITY
 # ==========================================
 
+# API Anahtarı
+API_KEY = "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"
 
-API_KEY = "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"
 
 client = OpenAI(
     base_url="https://api.groq.com/openai/v1",
     api_key=API_KEY
-
+)
 
 # ==========================================
-# 🧠 SESSION MANAGEMENT (Kullanıcı Verileri)
+# 🧠 SESSION MANAGEMENT
 # ==========================================
 if "messages" not in st.session_state: st.session_state.messages = []
 if "user_name" not in st.session_state: st.session_state.user_name = "Guest"
@@ -31,28 +32,26 @@ if "audio_queue" not in st.session_state: st.session_state.audio_queue = None
 if "last_audio_id" not in st.session_state: st.session_state.last_audio_id = None
 
 # ==========================================
-# 🎨 UI DESIGN (Executive Dark Theme)
+# 🎨 UI DESIGN
 # ==========================================
 st.set_page_config(page_title="AIVA | Intelligent Mentor", page_icon="🌐", layout="wide")
 
-st.markdown(f"""
+st.markdown("""
     <style>
-    .stApp {{ background-color: #0b0f19; color: #e2e8f0; }}
-    .stSidebar {{ background-color: #111827 !important; border-right: 1px solid #1f2937; }}
-    
-    .metric-card {{
+    .stApp { background-color: #0b0f19; color: #e2e8f0; }
+    .stSidebar { background-color: #111827 !important; border-right: 1px solid #1f2937; }
+    .metric-card {
         background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
         padding: 20px; border-radius: 12px; border: 1px solid #334155; margin-bottom: 15px;
-    }}
-    
-    .aiva-avatar {{
+    }
+    .aiva-avatar {
         width: 80px; height: 80px;
         background: radial-gradient(circle, #3b82f6 0%, #1d4ed8 100%);
         border-radius: 50%; margin: 0 auto 10px;
         display: flex; align-items: center; justify-content: center;
         box-shadow: 0 0 20px rgba(59, 130, 246, 0.5); border: 2px solid #60a5fa;
         font-size: 40px; color: white;
-    }}
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -84,11 +83,6 @@ def fetch_response(user_input):
     sys_msg = (
         f"You are AIVA, a professional and sophisticated English Language Mentor. "
         f"User: {st.session_state.user_name}. Level: {st.session_state.level}. "
-        "STRICT GUIDELINES: "
-        "1. In the [Answer] part, act as a professional coach. Use encouraging and elegant language. "
-        "2. DO NOT use slang. "
-        "3. If the user input is nonsensical, ask them to repeat. "
-        "4. Put ALL corrections and learning tips STRICTLY in the [Fix] part. "
         "Format: [Mood: mood] | [Answer] | [Fix: correction or None]"
     )
 
@@ -113,9 +107,7 @@ def fetch_response(user_input):
     except Exception as e:
         return f"System check required: {str(e)}", ""
 
-# ==========================================
-# 📊 SIDEBAR (ANALYTICS)
-# ==========================================
+# --- ARAYÜZ VE DİĞER KISIMLAR ---
 with st.sidebar:
     st.markdown("<h2 style='text-align: center; color: #60a5fa;'>AIVA CORE</h2>", unsafe_allow_html=True)
     st.markdown(f"""
@@ -132,9 +124,6 @@ with st.sidebar:
         st.session_state.messages = []; st.session_state.stats = {"total_words": 0, "mistakes": 0}
         st.rerun()
 
-# ==========================================
-# 💬 MAIN CHAT INTERFACE
-# ==========================================
 st.markdown("""
     <div style='text-align: center; margin-bottom: 20px;'>
         <div class="aiva-avatar">🌐</div>
@@ -159,8 +148,6 @@ with mic_col:
 with input_col:
     user_query = st.chat_input("Compose your message to AIVA...")
 
-# --- PROCESSING ---
-final_text = None
 if audio_data and st.session_state.last_audio_id != audio_data['id']:
     st.session_state.last_audio_id = audio_data['id']
     with st.spinner("Analyzing audio..."):
@@ -185,7 +172,6 @@ if final_text:
         st.session_state.audio_queue = get_audio_bytes(answer)
     st.rerun()
 
-# --- ANALYSIS PANEL ---
 if st.session_state.last_fix and "None" not in st.session_state.last_fix:
     st.markdown(f"""
         <div style='background-color: #1e293b; padding: 15px; border-radius: 8px; border: 1px dashed #eab308; margin-top: 10px;'>
