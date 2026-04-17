@@ -133,7 +133,7 @@ st.divider()
 # ==========================================
 # SES GİRİŞİ (SESSİZLİK AYARI YAPILDI)
 # ==========================================
-st.write("Voice Input: Click and speak. System waits for 3 seconds of silence.")
+
 audio_bytes = audio_recorder(
     text="Click to speak",
     recording_color="#e24a4a",
