@@ -124,7 +124,7 @@ st.divider()
 # ==========================================
 # 🎙️ HANDS-FREE INPUT (3s THRESHOLD)
 # ==========================================
-st.write("🎙️ Voice Input: Click to speak and wait 3 seconds of silence.")
+
 audio_bytes = audio_recorder(
     text="Click to start",
     recording_color="#e24a4a",
