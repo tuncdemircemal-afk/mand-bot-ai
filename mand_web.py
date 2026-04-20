@@ -7,13 +7,12 @@ import hashlib
 from audio_recorder_streamlit import audio_recorder
 
 # ==========================================
-# ⚙️ GÜVENLİ YAPILANDIRMA
+# ⚙️ CONFIGURATION
 # ==========================================
-# Kanka API Key'i buradan çekecek, Streamlit Secrets'a eklemeyi unutma!
 try:
     API_KEY = st.secrets["GROQ_API_KEY"]
 except:
-    API_KEY = "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" # Yedek anahtar
+    API_KEY = "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"
 
 client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEY)
 
@@ -35,8 +34,10 @@ st.set_page_config(page_title="AIVA | AI Mentor", page_icon="🌐", layout="wide
 st.markdown("""
     <style>
     .stApp { background-color: #0b0f19; color: #e2e8f0; }
+    .stSidebar { background-color: #111827 !important; border-right: 1px solid #1f2937; }
     .metric-card {
-        background: #1e293b; padding: 15px; border-radius: 12px; border: 1px solid #3b82f6; margin-bottom: 10px;
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        padding: 15px; border-radius: 12px; border: 1px solid #3b82f6; margin-bottom: 10px;
     }
     .aiva-avatar {
         width: 60px; height: 60px; background: radial-gradient(circle, #3b82f6 0%, #1d4ed8 100%);
@@ -70,7 +71,7 @@ def fetch_response(user_input):
             messages=[{"role": "system", "content": sys_msg}, {"role": "user", "content": user_input}],
             model="llama-3.1-8b-instant", 
             temperature=0.6,
-            timeout=10.0 # Bağlantı hatasını önlemek için 10 sn limit
+            timeout=10.0
         )
         content = response.choices[0].message.content
         if "|" in content:
@@ -79,7 +80,7 @@ def fetch_response(user_input):
             fix = parts[2].strip().replace("[Fix:", "").strip("[] ")
             return ans, fix
         return content.strip(), "None"
-    except Exception as e:
+    except:
         return "I'm having a little connection trouble. Can you say that again?", "None"
 
 # ==========================================
@@ -94,7 +95,6 @@ with st.sidebar:
 
 st.markdown("<div style='text-align: center;'><div class='aiva-avatar'>🌐</div><h3>AIVA Intelligence</h3></div>", unsafe_allow_html=True)
 
-# Chat History
 for m in st.session_state.messages:
     with st.chat_message(m["role"]): st.markdown(m["content"])
 
@@ -118,7 +118,7 @@ if audio_bytes:
     current_hash = hashlib.md5(audio_bytes).hexdigest()
     if st.session_state.last_audio_hash != current_hash:
         st.session_state.last_audio_hash = current_hash
-        with st.spinner("AIVA is listening..."):
+        with st.spinner("Thinking..."):
             try:
                 with open("temp.wav", "wb") as f: f.write(audio_bytes)
                 with open("temp.wav", "rb") as f:
@@ -127,16 +127,16 @@ if audio_bytes:
                         model="whisper-large-v3", 
                         response_format="text"
                     )
-                final_text = transcription
-            except Exception as e:
-                st.error("Connection lost. Please check your internet or try text input.")
+                if transcription: final_text = transcription
+            except:
+                st.error("Mic error! Please try text input.")
+
 elif user_query:
     final_text = user_query
 
 if final_text:
     st.session_state.stats["total_words"] += len(final_text.split())
     st.session_state.messages.append({"role": "user", "content": final_text})
-    
     with st.spinner("Thinking..."):
         answer, correction = fetch_response(final_text)
         st.session_state.messages.append({"role": "assistant", "content": answer})
@@ -144,7 +144,6 @@ if final_text:
         if correction and "None" not in correction: 
             st.session_state.stats["mistakes"] += 1
         st.session_state.audio_queue = get_audio_bytes(answer)
-    
     st.rerun()
 
 if st.session_state.last_fix and "None" not in st.session_state.last_fix:
