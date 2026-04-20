@@ -1,148 +1,93 @@
 import streamlit as st
 from openai import OpenAI
 from gtts import gTTS
-import os
-import uuid
-import hashlib
+import os, uuid, hashlib
 from audio_recorder_streamlit import audio_recorder
 
 # ==========================================
-# ⚙️ CONFIGURATION
+# ⚙️ ACİL DURUM YAPILANDIRMASI
 # ==========================================
-API_KEY = "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"
+try:
+    API_KEY = st.secrets["GROQ_API_KEY"]
+except:
+    API_KEY = "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"
+
 client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEY)
 
-# ==========================================
-# 🧠 SESSION STATE
-# ==========================================
-if "messages" not in st.session_state: st.session_state.messages = []
-if "stats" not in st.session_state: st.session_state.stats = {"total_words": 0, "mistakes": 0}
-if "level" not in st.session_state: st.session_state.level = "B1"
-if "last_fix" not in st.session_state: st.session_state.last_fix = ""
-if "audio_queue" not in st.session_state: st.session_state.audio_queue = None
-if "last_audio_hash" not in st.session_state: st.session_state.last_audio_hash = None
+# Session State Hazırlığı
+for key in ["messages", "stats", "audio_queue", "last_audio_hash", "level"]:
+    if key not in st.session_state:
+        if key == "messages": st.session_state[key] = []
+        elif key == "stats": st.session_state[key] = {"total_words": 0, "mistakes": 0}
+        elif key == "level": st.session_state[key] = "B1"
+        else: st.session_state[key] = None
 
-# ==========================================
-# 🎨 UI DESIGN
-# ==========================================
-st.set_page_config(page_title="AIVA | AI Mentor", page_icon="🌐", layout="wide")
+# 🎨 UI
+st.set_page_config(page_title="AIVA AI", page_icon="🌐")
+st.markdown("<style>.stApp{background:#0b0f19;color:#eceff4;}</style>", unsafe_allow_html=True)
 
-st.markdown("""
-    <style>
-    .stApp { background-color: #0b0f19; color: #e2e8f0; }
-    .stSidebar { background-color: #111827 !important; border-right: 1px solid #1f2937; }
-    .metric-card {
-        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-        padding: 15px; border-radius: 12px; border: 1px solid #3b82f6; margin-bottom: 10px;
-    }
-    .aiva-avatar {
-        width: 60px; height: 60px; background: radial-gradient(circle, #3b82f6 0%, #1d4ed8 100%);
-        border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); font-size: 30px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-# ==========================================
-# 🎙️ AUDIO CORE
-# ==========================================
-def get_audio_bytes(text):
-    if not text or text == "[Answer]": return None
+# 🛠️ GÜVENLİ FONKSİYONLAR
+def fetch_safe_response(text):
     try:
-        tts = gTTS(text=text, lang='en')
-        filename = f"s_{uuid.uuid4().hex}.mp3"
-        tts.save(filename)
-        with open(filename, "rb") as f: data = f.read()
-        os.remove(filename)
-        return data
-    except: return None
-
-def fetch_response(user_input):
-    # Promptu daha net hale getirdik ki "Answer" yazıp durmasın
-    sys_msg = (
-        f"You are AIVA, a professional English Mentor. Current User Level: {st.session_state.level}. "
-        "Talk naturally. IMPORTANT: Provide your response in this EXACT format: "
-        "Mood: [mood] | [Your English Answer] | [Correction for user if any, else None]"
-    )
-    try:
-        history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-5:]]
-        response = client.chat.completions.create(
-            messages=[{"role": "system", "content": sys_msg}] + history + [{"role": "user", "content": user_input}],
-            model="llama-3.1-8b-instant", temperature=0.7 # Temp'i biraz artırdık ki yaratıcı olsun
+        res = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role":"system","content":f"Mentor. Level:{st.session_state.level}. Format: Mood|Answer|Fix"},{"role":"user","content":text}],
+            timeout=8.0 # Çok bekleyip bağlantıyı koparmasın
         )
-        content = response.choices[0].message.content
-        
-        # Parse mantığını sağlamlaştırdık
-        if "|" in content:
-            parts = content.split("|")
-            ans = parts[1].strip() if len(parts) > 1 else content
-            fix = parts[2].strip() if len(parts) > 2 else "None"
-            # Eğer hala [Answer] yazıyorsa temizle
-            ans = ans.replace("[Answer]", "").replace("[", "").replace("]", "").strip()
-            fix = fix.replace("[Fix:", "").replace("]", "").strip()
-            return ans, fix
-        return content.replace("[Answer]", "").strip(), "None"
-    except: return "Connection error.", "None"
+        return res.choices[0].message.content
+    except:
+        return "System | I'm here but connection is a bit slow. Can you repeat? | None"
 
-# ==========================================
-# 📊 SIDEBAR & INTERFACE
-# ==========================================
-with st.sidebar:
-    st.markdown("<h3 style='text-align: center;'>🤖 AIVA CORE</h3>", unsafe_allow_html=True)
-    st.markdown(f"""<div class="metric-card">📝 {st.session_state.stats['total_words']} Words<br>⚠️ {st.session_state.stats['mistakes']} Mistakes</div>""", unsafe_allow_html=True)
-    st.session_state.level = st.select_slider("Level", options=["A1", "A2", "B1", "B2"], value=st.session_state.level)
-    if st.button("🔄 Reset"):
-        st.session_state.messages = []; st.session_state.stats = {"total_words": 0, "mistakes": 0}; st.rerun()
-
-st.markdown("<div style='text-align: center;'><div class='aiva-avatar'>🌐</div><h3>AIVA Intelligence</h3></div>", unsafe_allow_html=True)
-
-# Chat History
-for m in st.session_state.messages:
-    with st.chat_message(m["role"]): st.markdown(m["content"])
+# 📱 ARAYÜZ
+st.title("🌐 AIVA AI")
+chat_box = st.container()
+with chat_box:
+    for m in st.session_state.messages:
+        with st.chat_message(m["role"]): st.markdown(m["content"])
 
 if st.session_state.audio_queue:
     st.audio(st.session_state.audio_queue, format="audio/mp3", autoplay=True)
     st.session_state.audio_queue = None
 
-# ==========================================
-# 🎙️ INPUT AREA
-# ==========================================
 st.divider()
 c1, c2 = st.columns([1, 4])
 with c1:
-    audio_bytes = audio_recorder(text="", icon_size="2x", pause_threshold=3.0, key="mic")
+    # Key'i sabit tutarak çökmesini engelledik
+    audio_bytes = audio_recorder(text="", icon_size="2x", pause_threshold=3.0, key="final_mic_v3")
 with c2:
-    user_query = st.chat_input("Message AIVA...")
+    user_query = st.chat_input("Type here if mic fails...")
 
-# Logic
-final_text = None
+# --- MANTIK ---
+input_text = None
 if audio_bytes:
-    current_hash = hashlib.md5(audio_bytes).hexdigest()
-    if st.session_state.last_audio_hash != current_hash:
-        st.session_state.last_audio_hash = current_hash
-        with st.spinner("Thinking..."):
-            try:
-                with open("temp.wav", "wb") as f: f.write(audio_bytes)
-                with open("temp.wav", "rb") as f:
-                    transcription = client.audio.transcriptions.create(file=("temp.wav", f.read()), model="whisper-large-v3", response_format="text")
-                final_text = transcription
-            except: st.error("Mic error!")
-elif user_query:
-    final_text = user_query
+    h = hashlib.md5(audio_bytes).hexdigest()
+    if st.session_state.last_audio_hash != h:
+        st.session_state.last_audio_hash = h
+        try:
+            with open("t.wav","wb") as f: f.write(audio_bytes)
+            with open("t.wav","rb") as f:
+                input_text = client.audio.transcriptions.create(file=("t.wav", f.read()), model="whisper-large-v3", response_format="text")
+        except:
+            st.warning("Mic connection flickered. Try again or type.")
 
-if final_text:
-    st.session_state.stats["total_words"] += len(final_text.split())
-    st.session_state.messages.append({"role": "user", "content": final_text})
+if user_query: input_text = user_query
+
+if input_text:
+    st.session_state.messages.append({"role":"user","content":input_text})
+    raw = fetch_safe_response(input_text)
     
-    answer, correction = fetch_response(final_text)
+    # Parçalama
+    parts = raw.split("|")
+    ans = parts[1].strip() if len(parts) > 1 else raw
+    fix = parts[2].strip() if len(parts) > 2 else "None"
     
-    # Cevabı temizle ve kaydet
-    st.session_state.messages.append({"role": "assistant", "content": answer})
-    st.session_state.last_fix = correction
-    if correction and "None" not in correction: st.session_state.stats["mistakes"] += 1
+    st.session_state.messages.append({"role":"assistant","content":ans})
     
-    st.session_state.audio_queue = get_audio_bytes(answer)
+    # Ses Oluşturma
+    try:
+        tts = gTTS(text=ans, lang='en')
+        tts.save("s.mp3")
+        with open("s.mp3","rb") as f: st.session_state.audio_queue = f.read()
+    except: pass
+    
     st.rerun()
-
-if st.session_state.last_fix and "None" not in st.session_state.last_fix:
-    st.info(f"💡 {st.session_state.last_fix}")
