@@ -7,13 +7,13 @@ import hashlib
 from audio_recorder_streamlit import audio_recorder
 
 # ==========================================
-# ⚙️ CONFIGURATION
+#  CONFIGURATION
 # ==========================================
 API_KEY = "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"
 client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEY)
 
 # ==========================================
-# 🧠 SESSION MANAGEMENT
+#  SESSION MANAGEMENT
 # ==========================================
 if "messages" not in st.session_state: st.session_state.messages = []
 if "user_name" not in st.session_state: st.session_state.user_name = "User"
