@@ -5,7 +5,7 @@ import os, uuid, hashlib
 from audio_recorder_streamlit import audio_recorder
 
 # ==========================================
-# ⚙️ CONFIG (Gömülü API Key)
+# ⚙️ CONFIG (API KEY GÖMÜLÜ)
 # ==========================================
 API_KEY = "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"
 client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEY)
@@ -20,7 +20,7 @@ if "audio_queue" not in st.session_state: st.session_state.audio_queue = None
 if "last_audio_hash" not in st.session_state: st.session_state.last_audio_hash = None
 
 # ==========================================
-# 🎨 UI DESIGN (Eski Havalı Görünüm)
+# 🎨 UI DESIGN
 # ==========================================
 st.set_page_config(page_title="AIVA | AI Mentor", page_icon="🌐", layout="wide")
 
@@ -41,13 +41,12 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 📊 SIDEBAR (Seviye Sliderı Burda)
+# 📊 SIDEBAR
 # ==========================================
 with st.sidebar:
     st.markdown("<div class='aiva-avatar'>🌐</div>", unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: center;'>AIVA CORE</h3>", unsafe_allow_html=True)
     
-    # Seviye Ayarı
     st.session_state.level = st.select_slider(
         "Target Level",
         options=["A1", "A2", "B1", "B2", "C1"],
@@ -80,7 +79,7 @@ if st.session_state.audio_queue:
     st.session_state.audio_queue = None
 
 # ==========================================
-# 🎙️ INPUT AREA (3 Saniye Kuralı)
+# 🎙️ INPUT AREA
 # ==========================================
 st.divider()
 c1, c2 = st.columns([1, 4])
@@ -99,9 +98,15 @@ if audio_bytes:
         try:
             with open("t.wav","wb") as f: f.write(audio_bytes)
             with open("t.wav","rb") as f:
-                trans = client.audio.transcriptions.create(file=("t.wav", f.read()), model="whisper-large-v3", response_format="text")
+                # Sesi yazıya çevirirken 20 saniye bekleme süresi veriyoruz
+                trans = client.audio.transcriptions.create(
+                    file=("t.wav", f.read()), 
+                    model="whisper-large-v3", 
+                    response_format="text"
+                )
                 if trans: final_text = trans
-        except: st.error("Mic Connection Error!")
+        except Exception as e:
+            st.error("Microphone connection timed out. Try again!")
 
 if user_query: final_text = user_query
 
@@ -110,19 +115,27 @@ if final_text:
     st.session_state.messages.append({"role": "user", "content": final_text})
     
     try:
+        # Groq API çağrısı - Timeout süresini 15 saniyeye çıkardım
         res = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": f"You are AIVA, a professional English mentor. Adapt to {st.session_state.level} level. Give natural and short answers without any special formatting."},
                 {"role": "user", "content": final_text}
-            ]
+            ],
+            timeout=15.0 # İnternet yavaşsa hemen hata vermesin
         )
         ans = res.choices[0].message.content
         st.session_state.messages.append({"role": "assistant", "content": ans})
         
-        # TTS
+        # TTS - Sesli yanıt üretme
         tts = gTTS(text=ans, lang='en')
         tts.save("s.mp3")
         with open("s.mp3","rb") as f: st.session_state.audio_queue = f.read()
-        st.rerun()
-    except: st.error("AI is busy!")
+        st.rerun() 
+        
+    except Exception as e:
+        # Eğer hata rate limit ise (çok sık soruyorsan) farklı bir uyarı verir
+        if "429" in str(e):
+            st.warning("Whoa! Too many requests. Take a deep breath and try in 5 seconds.")
+        else:
+            st.error("Connection glitch. Let's try that one more time!")
