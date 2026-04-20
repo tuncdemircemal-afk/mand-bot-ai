@@ -7,13 +7,13 @@ import hashlib
 from audio_recorder_streamlit import audio_recorder
 
 # ==========================================
-# ⚙️ CONFIGURATION
+#  CONFIGURATION
 # ==========================================
 API_KEY = "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"
 client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEY)
 
 # ==========================================
-# 🧠 SESSION STATE
+#  SESSION STATE
 # ==========================================
 if "messages" not in st.session_state: st.session_state.messages = []
 if "stats" not in st.session_state: st.session_state.stats = {"total_words": 0, "mistakes": 0}
@@ -23,7 +23,7 @@ if "audio_queue" not in st.session_state: st.session_state.audio_queue = None
 if "last_audio_hash" not in st.session_state: st.session_state.last_audio_hash = None
 
 # ==========================================
-# 🎨 UI DESIGN
+#  UI DESIGN
 # ==========================================
 st.set_page_config(page_title="AIVA | AI Mentor", page_icon="🌐", layout="wide")
 
@@ -44,7 +44,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 🎙️ AUDIO CORE
+#  AUDIO CORE
 # ==========================================
 def get_audio_bytes(text):
     if not text or text == "[Answer]": return None
@@ -58,7 +58,7 @@ def get_audio_bytes(text):
     except: return None
 
 def fetch_response(user_input):
-    # Promptu daha net hale getirdik ki "Answer" yazıp durmasın
+    
     sys_msg = (
         f"You are AIVA, a professional English Mentor. Current User Level: {st.session_state.level}. "
         "Talk naturally. IMPORTANT: Provide your response in this EXACT format: "
@@ -72,7 +72,7 @@ def fetch_response(user_input):
         )
         content = response.choices[0].message.content
         
-        # Parse mantığını sağlamlaştırdık
+      
         if "|" in content:
             parts = content.split("|")
             ans = parts[1].strip() if len(parts) > 1 else content
@@ -85,7 +85,7 @@ def fetch_response(user_input):
     except: return "Connection error.", "None"
 
 # ==========================================
-# 📊 SIDEBAR & INTERFACE
+#  SIDEBAR & INTERFACE
 # ==========================================
 with st.sidebar:
     st.markdown("<h3 style='text-align: center;'>🤖 AIVA CORE</h3>", unsafe_allow_html=True)
@@ -105,7 +105,7 @@ if st.session_state.audio_queue:
     st.session_state.audio_queue = None
 
 # ==========================================
-# 🎙️ INPUT AREA
+#  INPUT AREA
 # ==========================================
 st.divider()
 c1, c2 = st.columns([1, 4])
