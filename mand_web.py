@@ -110,7 +110,7 @@ with st.sidebar:
 
     <div class="metric-card">
 
-        📝 Words: {st.session_state.stats['total_words']}<br>
+        📝 Words: {st.session_state.stats['total_words']}
 
         ⚠️ Mistakes: {st.session_state.stats['mistakes']}
 
