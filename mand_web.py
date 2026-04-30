@@ -13,18 +13,13 @@ else:
     st.stop()
 
 client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEY)
-# ==========================================
 # 🧠 SESSION STATE
-# ==========================================
 if "messages" not in st.session_state: st.session_state.messages = []
 if "stats" not in st.session_state: st.session_state.stats = {"total_words": 0, "mistakes": 0}
 if "level" not in st.session_state: st.session_state.level = "B1"
 if "audio_queue" not in st.session_state: st.session_state.audio_queue = None
 if "last_audio_hash" not in st.session_state: st.session_state.last_audio_hash = None
-
-# ==========================================
 # 🎨 UI DESIGN
-# ==========================================
 st.set_page_config(page_title="AIVA | AI Mentor", page_icon="🌐", layout="wide")
 
 st.markdown("""
@@ -43,9 +38,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# ==========================================
-# 📊 SIDEBAR
-# ==========================================
+ #📊 SIDEBAR
 with st.sidebar:
     st.markdown("<div class='aiva-avatar'>🌐</div>", unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: center;'>AIVA CORE</h3>", unsafe_allow_html=True)
@@ -68,10 +61,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.session_state.stats = {"total_words": 0, "mistakes": 0}
         st.rerun()
-
-# ==========================================
-# 💬 CHAT DISPLAY
-# ==========================================
+#  CHAT DISPLAY
 st.title("AIVA Intelligence")
 
 for m in st.session_state.messages:
@@ -80,10 +70,7 @@ for m in st.session_state.messages:
 if st.session_state.audio_queue:
     st.audio(st.session_state.audio_queue, format="audio/mp3", autoplay=True)
     st.session_state.audio_queue = None
-
-# ==========================================
-# 🎙️ INPUT AREA
-# ==========================================
+#  INPUT AREA
 st.divider()
 c1, c2 = st.columns([1, 4])
 with c1:
@@ -101,7 +88,7 @@ if audio_bytes:
         try:
             with open("t.wav","wb") as f: f.write(audio_bytes)
             with open("t.wav","rb") as f:
-                # Sesi yazıya çevirirken 20 saniye bekleme süresi veriyoruz
+                # Sesi yazıya çevirirken 20 saniye bekleme süresi 
                 trans = client.audio.transcriptions.create(
                     file=("t.wav", f.read()), 
                     model="whisper-large-v3", 
@@ -118,14 +105,14 @@ if final_text:
     st.session_state.messages.append({"role": "user", "content": final_text})
     
     try:
-        # Groq API çağrısı - Timeout süresini 15 saniyeye çıkardım
+        # Groq API çağrısı - Timeout süresini 15 saniye
         res = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": f"You are AIVA, a professional English mentor. Adapt to {st.session_state.level} level. Give natural and short answers without any special formatting."},
                 {"role": "user", "content": final_text}
             ],
-            timeout=15.0 # İnternet yavaşsa hemen hata vermesin
+            timeout=15.0
         )
         ans = res.choices[0].message.content
         st.session_state.messages.append({"role": "assistant", "content": ans})
