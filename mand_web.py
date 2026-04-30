@@ -10,11 +10,11 @@ from audio_recorder_streamlit import audio_recorder
 
 
 
-# ==========================================
 
-# ⚙️ CONFIG (API KEY GÖMÜL
 
-# ==========================================
+#  CONFIG 
+
+
 
 API_KEY = "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"
 
@@ -22,11 +22,9 @@ client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEY)
 
 
 
-# ==========================================
 
-# 🧠 SESSION STATE
+#  SESSION STATE
 
-# ==========================================
 
 if "messages" not in st.session_state: st.session_state.messages = []
 
@@ -40,11 +38,10 @@ if "last_audio_hash" not in st.session_state: st.session_state.last_audio_hash =
 
 
 
-# ==========================================
 
-# 🎨 UI DESIGN
 
-# ==========================================
+#  UI DESIGN
+
 
 st.set_page_config(page_title="AIVA | AI Mentor", page_icon="🌐", layout="wide")
 
@@ -82,11 +79,10 @@ st.markdown("""
 
 
 
-# ==========================================
 
 # 📊 SIDEBAR
 
-# ==========================================
+
 
 with st.sidebar:
 
@@ -114,9 +110,9 @@ with st.sidebar:
 
     <div class="metric-card">
 
-        📝 <b>Words:</b> {st.session_state.stats['total_words']}<br>
+        📝 Words: {st.session_state.stats['total_words']}<br>
 
-        ⚠️ <b>Mistakes:</b> {st.session_state.stats['mistakes']}
+        ⚠️ Mistakes: {st.session_state.stats['mistakes']}
 
     </div>
 
@@ -134,11 +130,9 @@ with st.sidebar:
 
 
 
-# ==========================================
+
 
 # 💬 CHAT DISPLAY
-
-# ==========================================
 
 st.title("AIVA Intelligence")
 
@@ -158,11 +152,10 @@ if st.session_state.audio_queue:
 
 
 
-# ==========================================
+
 
 # 🎙️ INPUT AREA
 
-# ==========================================
 
 st.divider()
 
@@ -198,7 +191,7 @@ if audio_bytes:
 
             with open("t.wav","rb") as f:
 
-                # Sesi yazıya çevirirken 20 saniye bekleme süresi veriyoruz
+                # Sesi yazıya çevirirken 20 saniye bekleme süresi ver
 
                 trans = client.audio.transcriptions.create(
 
