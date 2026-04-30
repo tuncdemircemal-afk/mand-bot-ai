@@ -4,12 +4,15 @@ from gtts import gTTS
 import os, uuid, hashlib
 from audio_recorder_streamlit import audio_recorder
 
-# ==========================================
-# ⚙️ CONFIG (API KEY GÖMÜL
-# ==========================================
-API_KEY = "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"
-client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEY)
+#Api key
 
+if "GROQ_API_KEY" in st.secrets:
+    API_KEY = st.secrets["GROQ_API_KEY"]
+else:
+    st.error("API Key bulunamadı! Lütfen secrets.toml dosyasını kontrol et.")
+    st.stop()
+
+client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEY)
 # ==========================================
 # 🧠 SESSION STATE
 # ==========================================
