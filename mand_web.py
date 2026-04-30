@@ -5,7 +5,7 @@ import os, uuid, hashlib
 from audio_recorder_streamlit import audio_recorder
 
 # ==========================================
-# ⚙️ CONFIG (API KEY GÖMÜLÜ)
+# ⚙️ CONFIG (API KEY GÖMÜL
 # ==========================================
 API_KEY = "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"
 client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEY)
