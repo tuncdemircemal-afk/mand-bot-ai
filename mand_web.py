@@ -16,7 +16,7 @@ from audio_recorder_streamlit import audio_recorder
 
 
 
-API_KEY = "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"
+API_KEY = "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"
 
 client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEY)
 
